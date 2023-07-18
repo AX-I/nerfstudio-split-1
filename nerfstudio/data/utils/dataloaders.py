@@ -56,6 +56,7 @@ class CacheDataloader(DataLoader):
         device: Union[torch.device, str] = "cpu",
         collate_fn: Callable[[Any], Any] = nerfstudio_collate,
         exclude_batch_keys_from_device: Optional[List[str]] = None,
+        local_rank=None,
         **kwargs,
     ):
         if exclude_batch_keys_from_device is None:
@@ -74,6 +75,8 @@ class CacheDataloader(DataLoader):
 
         self.num_repeated = self.num_times_to_repeat_images  # starting value
         self.first_time = True
+
+        self.local_rank = local_rank
 
         self.cached_collated_batch = None
         if self.cache_all_images:

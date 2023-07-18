@@ -480,6 +480,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             pin_memory=True,
             collate_fn=self.config.collate_fn,
             exclude_batch_keys_from_device=self.exclude_batch_keys_from_device,
+            local_rank=self.local_rank,
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)

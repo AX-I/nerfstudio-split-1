@@ -86,7 +86,8 @@ def _set_random_seed(seed) -> None:
     torch.manual_seed(seed)
 
 
-def train_loop(local_rank: int, world_size: int, config: TrainerConfig, global_rank: int = 0):
+def train_loop(local_rank: int, world_size: int, config: TrainerConfig, global_rank: int = 0,
+               dist=None):
     """Main training function that sets up and runs the trainer per process
 
     Args:
@@ -97,7 +98,7 @@ def train_loop(local_rank: int, world_size: int, config: TrainerConfig, global_r
     _set_random_seed(config.machine.seed + global_rank)
     trainer = config.setup(local_rank=local_rank, world_size=world_size)
     trainer.setup()
-    trainer.train()
+    trainer.train(dist)
 
 
 def _distributed_worker(
@@ -151,7 +152,7 @@ def _distributed_worker(
             comms.LOCAL_PROCESS_GROUP = pg
 
     assert num_devices_per_machine <= torch.cuda.device_count()
-    output = main_func(local_rank, world_size, config, global_rank)
+    output = main_func(local_rank, world_size, config, global_rank, dist)
     comms.synchronize()
     dist.destroy_process_group()
     return output

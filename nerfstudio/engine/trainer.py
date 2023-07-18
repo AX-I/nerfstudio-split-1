@@ -224,9 +224,11 @@ class Trainer:
             }
         return Optimizers(optimizer_config, param_groups)
 
-    def train(self) -> None:
+    def train(self, dist=None) -> None:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
+
+        self.dist = dist
 
         # don't want to call save_dataparser_transform if pipeline's datamanager does not have a dataparser
         if isinstance(self.pipeline.datamanager, VanillaDataManager):
@@ -471,6 +473,7 @@ class Trainer:
                 loss = functools.reduce(torch.add, loss_dict.values())
                 loss /= self.gradient_accumulation_steps
             self.grad_scaler.scale(loss).backward()  # type: ignore
+            self.pipeline.model.average_gradients(self.dist)
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
 
         if self.config.log_gradients:
