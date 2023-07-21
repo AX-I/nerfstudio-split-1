@@ -322,10 +322,12 @@ class NerfactoModel(Model):
         return outputs
 
     def average_gradients(self, dist):
+        if dist is None: return
         size = float(dist.get_world_size())
-        for param in self.parameters():
-            dist.all_reduce(param.grad.data, op=dist.ReduceOp.SUM)
-            param.grad.data /= size
+        for param in self.field.mlp_base_mlp.parameters():
+            if param.grad is not None:
+                dist.all_reduce(param.grad.data, op=dist.ReduceOp.SUM)
+                param.grad.data /= size
 
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = {}
