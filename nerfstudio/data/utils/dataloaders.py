@@ -100,6 +100,9 @@ class CacheDataloader(DataLoader):
         print('bound', bound0, bound1)
         print('shape', posN.shape[0], 'idx', self.cams_idx)
 
+        self.split_coord = coord
+        self.split_center = center
+
         self.num_images_to_sample_from = len(self.cams_idx) if self.cache_all_images else num_images_to_sample_from
 
 

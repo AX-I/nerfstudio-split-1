@@ -136,6 +136,7 @@ class NerfactoModel(Model):
     """
 
     config: NerfactoModelConfig
+    dist: None
 
     def populate_modules(self):
         """Set the fields and modules."""
@@ -285,7 +286,22 @@ class NerfactoModel(Model):
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
 
+        f = ray_samples.frustums
+        p = f.origins + f.starts * f.directions
+
+        partition = (p[:,:,self.kwargs['split_coord']] < self.kwargs['split_center'])[:,:,None]
+        if self.kwargs['local_rank'] == 0:
+            weights *= partition
+        else:
+            weights *= torch.logical_not(partition)
+
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+
+        if self.dist:
+            # Can directly add since they are weight-premultiplied
+            self.dist.all_reduce(rgb, op=self.dist.ReduceOp.SUM)
+
+
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 

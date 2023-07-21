@@ -102,6 +102,8 @@ class RGBRenderer(nn.Module):
             comp_rgb = torch.sum(weights * rgb, dim=-2)
             accumulated_weight = torch.sum(weights, dim=-2)
 
+        # we get last_sample
+
         if background_color == "random":
             # If background color is random, the predicted color is returned without blending,
             # as if the background color was black.
@@ -109,7 +111,11 @@ class RGBRenderer(nn.Module):
 
         elif background_color == "last_sample":
             # Note, this is only supported for non-packed samples.
-            background_color = rgb[..., -1, :]
+            #background_color = rgb[..., -1, :]
+
+            # To add with other gpus
+            return comp_rgb
+
         else:
             background_color = cls.get_background_color(background_color, shape=comp_rgb.shape, device=comp_rgb.device)
         assert isinstance(background_color, torch.Tensor)

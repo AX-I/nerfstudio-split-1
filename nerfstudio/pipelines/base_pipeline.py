@@ -273,6 +273,9 @@ class VanillaPipeline(Pipeline):
             metadata=self.datamanager.train_dataset.metadata,
             device=device,
             grad_scaler=grad_scaler,
+            local_rank=local_rank,
+            split_coord=self.datamanager.train_image_dataloader.split_coord,
+            split_center=self.datamanager.train_image_dataloader.split_center,
         )
         self.model.to(device)
 
