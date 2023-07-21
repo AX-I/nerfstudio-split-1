@@ -78,6 +78,31 @@ class CacheDataloader(DataLoader):
 
         self.local_rank = local_rank
 
+
+
+        cameras = dataset.cameras # Tensor
+        posN = cameras.camera_to_worlds[:,:,3].reshape(-1, 3)
+
+
+        # Simple axis-aligned split
+        bound1 = torch.max(posN, 0).values
+        bound0 = torch.min(posN, 0).values
+        coord = torch.max(bound1 - bound0, 0).indices.item()
+        center = (bound1[coord] + bound0[coord]) / 2
+
+        idx = torch.arange(posN.shape[0])
+
+        if local_rank == 0:
+            self.cams_idx = list(idx[posN[:,coord] < center])
+        else:
+            self.cams_idx = list(idx[posN[:,coord] >= center])
+
+        print('bound', bound0, bound1)
+        print('shape', posN.shape[0], 'idx', self.cams_idx)
+
+        self.num_images_to_sample_from = len(self.cams_idx) if self.cache_all_images else num_images_to_sample_from
+
+
         self.cached_collated_batch = None
         if self.cache_all_images:
             CONSOLE.print(f"Caching all {len(self.dataset)} images.")
@@ -103,7 +128,7 @@ class CacheDataloader(DataLoader):
         """Returns a list of batches from the dataset attribute."""
 
         assert isinstance(self.dataset, Sized)
-        indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
+        indices = random.sample(self.cams_idx, k=self.num_images_to_sample_from)
         batch_list = []
         results = []
 
