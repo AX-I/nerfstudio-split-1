@@ -59,8 +59,8 @@ class CacheDataloader(DataLoader):
         local_rank=None,
         **kwargs,
     ):
-        #if exclude_batch_keys_from_device is None:
-        #    exclude_batch_keys_from_device = ["image"]
+        if exclude_batch_keys_from_device is None:
+            exclude_batch_keys_from_device = ["image"]
         self.dataset = dataset
         assert isinstance(self.dataset, Sized)
 
@@ -154,7 +154,7 @@ class CacheDataloader(DataLoader):
         batch_list = self._get_batch_list()
         collated_batch = self.collate_fn(batch_list)
         collated_batch = get_dict_to_torch(
-            collated_batch, device=self.device, exclude=None #self.exclude_batch_keys_from_device
+            collated_batch, device=self.device, exclude=self.exclude_batch_keys_from_device
         )
         return collated_batch
 
