@@ -86,6 +86,7 @@ class ViewerState:
         pipeline: Pipeline,
         trainer: Optional[Trainer] = None,
         train_lock: Optional[threading.Lock] = None,
+        queue: Optional = None,
     ):
         self.config = config
         self.trainer = trainer
@@ -94,6 +95,8 @@ class ViewerState:
         self.pipeline = pipeline
         self.log_filename = log_filename
         self.datapath = datapath.parent if datapath.is_file() else datapath
+
+        self.queue = queue
 
         if self.config.websocket_port is None:
             websocket_port = viewer_utils.get_free_port(default_port=self.config.websocket_port_default)
@@ -409,6 +412,7 @@ class ViewerState:
                 render_freq = 30
             if step > self.last_step + render_freq:
                 self.last_step = step
+                self.queue.put('Render')
                 self.render_statemachine.action(RenderAction("step", self.camera_message))
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:

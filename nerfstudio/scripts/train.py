@@ -58,6 +58,8 @@ import torch.multiprocessing as mp
 import tyro
 import yaml
 
+import multiprocessing as mp_orig
+
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import TrainerConfig
@@ -87,7 +89,7 @@ def _set_random_seed(seed) -> None:
 
 
 def train_loop(local_rank: int, world_size: int, config: TrainerConfig, global_rank: int = 0,
-               dist=None):
+               dist=None, queue=None):
     """Main training function that sets up and runs the trainer per process
 
     Args:
@@ -97,7 +99,7 @@ def train_loop(local_rank: int, world_size: int, config: TrainerConfig, global_r
     """
     _set_random_seed(config.machine.seed + global_rank)
     trainer = config.setup(local_rank=local_rank, world_size=world_size)
-    trainer.setup()
+    trainer.setup(queue=queue)
     trainer.train(dist)
 
 
@@ -111,6 +113,7 @@ def _distributed_worker(
     config: TrainerConfig,
     timeout: timedelta = DEFAULT_TIMEOUT,
     device_type: Literal["cpu", "cuda", "mps"] = "cuda",
+    queue: Optional[mp_orig.Queue] = None,
 ) -> Any:
     """Spawned distributed worker that handles the initialization of process group and handles the
        training process on multiple processes.
@@ -152,7 +155,7 @@ def _distributed_worker(
             comms.LOCAL_PROCESS_GROUP = pg
 
     assert num_devices_per_machine <= torch.cuda.device_count()
-    output = main_func(local_rank, world_size, config, global_rank, dist)
+    output = main_func(local_rank, world_size, config, global_rank, dist, queue)
     comms.synchronize()
     dist.destroy_process_group()
     return output
@@ -202,11 +205,14 @@ def launch(
         if num_machines > 1 and dist_url.startswith("file://"):
             CONSOLE.log("file:// is not a reliable init_method in multi-machine jobs. Prefer tcp://")
 
+        queue = mp.Queue()
+
         process_context = mp.spawn(
             _distributed_worker,
             nprocs=num_devices_per_machine,
             join=False,
-            args=(main_func, world_size, num_devices_per_machine, machine_rank, dist_url, config, timeout, device_type),
+            args=(main_func, world_size, num_devices_per_machine, machine_rank,
+                  dist_url, config, timeout, device_type, queue),
         )
         # process_context won't be None because join=False, so it's okay to assert this
         # for Pylance reasons

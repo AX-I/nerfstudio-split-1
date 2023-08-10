@@ -108,7 +108,7 @@ class CacheDataloader(DataLoader):
 
         self.cached_collated_batch = None
         if self.cache_all_images:
-            CONSOLE.print(f"Caching all {len(self.dataset)} images.")
+            CONSOLE.print(f"Caching all {len(self.cams_idx)}/{len(self.dataset)} images.")
             if len(self.dataset) > 500:
                 CONSOLE.print(
                     "[bold yellow]Warning: If you run out of memory, try reducing the number of images to sample from."

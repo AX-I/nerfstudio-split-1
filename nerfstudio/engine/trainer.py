@@ -136,7 +136,8 @@ class Trainer:
 
         self.viewer_state = None
 
-    def setup(self, test_mode: Literal["test", "val", "inference"] = "val") -> None:
+    def setup(self, test_mode: Literal["test", "val", "inference"] = "val",
+              queue=None) -> None:
         """Setup the Trainer by calling other setup functions.
 
         Args:
@@ -168,6 +169,7 @@ class Trainer:
                 pipeline=self.pipeline,
                 trainer=self,
                 train_lock=self.train_lock,
+                queue=queue,
             )
             banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
         if self.config.is_viewer_beta_enabled() and self.local_rank == 0:
