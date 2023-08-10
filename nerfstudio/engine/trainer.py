@@ -45,6 +45,8 @@ from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server.viewer_state import ViewerState
 from nerfstudio.viewer_beta.viewer import Viewer as ViewerBetaState
 
+from nerfstudio.viewer.server.dist_vs import DistributedViewerState
+
 TRAIN_INTERATION_OUTPUT = Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
 TORCH_DEVICE = str
 
@@ -172,6 +174,14 @@ class Trainer:
                 queue=queue,
             )
             banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
+
+        if self.config.is_viewer_enabled() and self.local_rank != 0:
+            self.viewer_state = DistributedViewerState(
+                pipeline=self.pipeline,
+                trainer=self,
+                queue=queue,
+            )
+
         if self.config.is_viewer_beta_enabled() and self.local_rank == 0:
             self.viewer_state = ViewerBetaState(
                 self.config.viewer,

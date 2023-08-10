@@ -412,7 +412,6 @@ class ViewerState:
                 render_freq = 30
             if step > self.last_step + render_freq:
                 self.last_step = step
-                self.queue.put('Render')
                 self.render_statemachine.action(RenderAction("step", self.camera_message))
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:

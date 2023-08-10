@@ -129,6 +129,9 @@ class RenderStateMachine(threading.Thread):
         with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
             camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
 
+            print('Put action')
+            self.viewer.queue.put(('Render', camera_ray_bundle))
+
             with TimeWriter(None, None, write=False) as vis_t:
                 self.viewer.get_model().eval()
                 step = self.viewer.step
