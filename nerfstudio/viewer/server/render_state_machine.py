@@ -123,14 +123,15 @@ class RenderStateMachine(threading.Thread):
 
         image_height, image_width = self._calculate_image_res(cam_msg.aspect)
 
+        print('Put action')
+        self.viewer.queue.put(('Render', (cam_msg, image_height, image_width)))
+        print('...')
+
         camera: Optional[Cameras] = self.viewer.get_camera(image_height, image_width)
         assert camera is not None, "render called before viewer connected"
 
         with self.viewer.train_lock if self.viewer.train_lock is not None else contextlib.nullcontext():
             camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=self.viewer.get_model().render_aabb)
-
-            print('Put action')
-            self.viewer.queue.put(('Render', camera_ray_bundle))
 
             with TimeWriter(None, None, write=False) as vis_t:
                 self.viewer.get_model().eval()
