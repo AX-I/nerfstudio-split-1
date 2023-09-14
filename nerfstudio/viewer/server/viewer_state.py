@@ -60,6 +60,8 @@ from nerfstudio.viewer.viser.messages import (
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
 
+from nerfstudio.viewer.server.dist_vs import serialize_cam_msg
+
 
 @decorate_all([check_main_thread])
 class ViewerState:
@@ -86,7 +88,7 @@ class ViewerState:
         pipeline: Pipeline,
         trainer: Optional[Trainer] = None,
         train_lock: Optional[threading.Lock] = None,
-        queue: Optional = None,
+        dist: Optional = None,
     ):
         self.config = config
         self.trainer = trainer
@@ -96,7 +98,7 @@ class ViewerState:
         self.log_filename = log_filename
         self.datapath = datapath.parent if datapath.is_file() else datapath
 
-        self.queue = queue
+        self.dist = dist
 
         if self.config.websocket_port is None:
             websocket_port = viewer_utils.get_free_port(default_port=self.config.websocket_port_default)
@@ -378,7 +380,10 @@ class ViewerState:
         self.train_btn_state = train_state
         self.viser_server.set_training_state(train_state)
 
-    def update_scene(self, step: int, num_rays_per_batch: Optional[int] = None) -> None:
+    def update_scene(self, step: int, num_rays_per_batch: Optional[int] = None,
+                     dist = None,
+                     dist_viewer_step: Optional[torch.Tensor] = None,
+                     dist_cam_msg_t: Optional[torch.Tensor] = None) -> None:
         """updates the scene based on the graph weights
 
         Args:
@@ -411,8 +416,19 @@ class ViewerState:
             else:
                 render_freq = 30
             if step > self.last_step + render_freq:
+
+                dist_viewer_step += 1
+                dist_cam_msg_t = serialize_cam_msg(self.camera_message)
+
+                dist.broadcast(dist_viewer_step, src=0)
+                print('broadcast dist_viewer_step')
+                dist.broadcast(dist_cam_msg, src=0)
+                print('broadcast dist_cam_msg')
+
+
                 self.last_step = step
                 self.render_statemachine.action(RenderAction("step", self.camera_message))
+
 
     def update_colormap_options(self, dimensions: int, dtype: type) -> None:
         """update the colormap options based on the current render

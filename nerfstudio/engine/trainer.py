@@ -139,7 +139,7 @@ class Trainer:
         self.viewer_state = None
 
     def setup(self, test_mode: Literal["test", "val", "inference"] = "val",
-              queue=None) -> None:
+              dist=None) -> None:
         """Setup the Trainer by calling other setup functions.
 
         Args:
@@ -148,6 +148,8 @@ class Trainer:
                 'test': loads train/test datasets into memory
                 'inference': does not load any dataset into memory
         """
+        self.dist = dist
+
         self.pipeline = self.config.pipeline.setup(
             device=self.device,
             test_mode=test_mode,
@@ -171,7 +173,7 @@ class Trainer:
                 pipeline=self.pipeline,
                 trainer=self,
                 train_lock=self.train_lock,
-                queue=queue,
+                dist=self.dist,
             )
             banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
 
@@ -179,7 +181,7 @@ class Trainer:
             self.viewer_state = DistributedViewerState(
                 pipeline=self.pipeline,
                 trainer=self,
-                queue=queue,
+                dist=self.dist,
             )
 
         if self.config.is_viewer_beta_enabled() and self.local_rank == 0:
@@ -236,13 +238,13 @@ class Trainer:
             }
         return Optimizers(optimizer_config, param_groups)
 
-    def train(self, dist=None) -> None:
+    def train(self) -> None:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
-        self.dist = dist
-
-        self.pipeline.model.dist = dist
+        self.pipeline.model.dist = self.dist
+        self.dist_viewer_step = torch.Tensor([0])
+        self.dist_cam_msg = torch.zeros(22)
 
         # don't want to call save_dataparser_transform if pipeline's datamanager does not have a dataparser
         if isinstance(self.pipeline.datamanager, VanillaDataManager):
@@ -369,7 +371,11 @@ class Trainer:
         assert self.viewer_state is not None
         num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
         try:
-            self.viewer_state.update_scene(step, num_rays_per_batch)
+            self.viewer_state.update_scene(step, num_rays_per_batch,
+                                           self.dist,
+                                           self.dist_viewer_step,
+                                           self.dist_cam_msg)
+
         except RuntimeError:
             time.sleep(0.03)  # sleep to allow buffer to reset
             CONSOLE.log("Viewer failed. Continuing training.")
