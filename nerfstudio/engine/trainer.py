@@ -543,6 +543,7 @@ class Trainer:
 
         # one eval image
         if step_check(step, self.config.steps_per_eval_image):
+            print('eval image local rank', self.local_rank)
             with TimeWriter(writer, EventName.TEST_RAYS_PER_SEC, write=False) as test_t:
                 metrics_dict, images_dict = self.pipeline.get_eval_image_metrics_and_images(step=step)
             writer.put_time(
