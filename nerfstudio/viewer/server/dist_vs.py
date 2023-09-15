@@ -71,15 +71,18 @@ class DistributedViewerState:
                      dist_viewer_step: Optional[torch.Tensor] = None,
                      dist_cam_msg_t: Optional[torch.Tensor] = None) -> None:
 
-        print('going to receive step', flush=True)
+        print(f'{step} going to receive step', flush=True)
         dist.broadcast(dist_viewer_step, src=0)
-        print('receive dist_viewer_step', flush=True)
-        dist.broadcast(dist_cam_msg, src=0)
-        print('receive dist_cam_msg', flush=True)
+        print('receive dist_viewer_step', dist_viewer_step, flush=True)
 
         if dist_viewer_step.item() != self.last_dist_viewer_step:
             self.last_dist_viewer_step += 1
-            self.camera_message = unserialize_cam_msg(dist_cam_msg)
+
+            print('going to receive cam_msg', flush=True)
+            dist.broadcast(dist_cam_msg_t, src=0)
+            print('receive dist_cam_msg_t', flush=True)
+            self.camera_message = unserialize_cam_msg(dist_cam_msg_t)
+
             self.render_statemachine._render_img()
 
 

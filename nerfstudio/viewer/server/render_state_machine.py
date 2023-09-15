@@ -124,12 +124,12 @@ class RenderStateMachine(threading.Thread):
         image_height, image_width = self._calculate_image_res(cam_msg.aspect)
 
         print('step', self.viewer.dist_step, flush=True)
-        if self.viewer.dist_step > 0:
-            hw = torch.Tensor([image_height, image_width])
-            hw = hw.to(self.viewer.trainer.device)
-            print('going to broadcast hw', flush=True)
-            self.viewer.dist.broadcast(hw, src=0)
-            print('broadcast image_height width', flush=True)
+        #if self.viewer.dist_step > 0:
+        hw = torch.Tensor([image_height, image_width])
+        hw = hw.to(self.viewer.trainer.device)
+        print('going to broadcast hw', flush=True)
+        self.viewer.dist.broadcast(hw, src=0)
+        print('broadcast image_height width', flush=True)
 
         camera: Optional[Cameras] = self.viewer.get_camera(image_height, image_width)
         assert camera is not None, "render called before viewer connected"
@@ -176,16 +176,17 @@ class RenderStateMachine(threading.Thread):
                 # if we are in high res and we get a static action, we don't need to do anything
                 continue
             self.state = self.transitions[self.state][action.action]
-            try:
-                with viewer_utils.SetTrace(self.check_interrupt):
-                    outputs = self._render_img(action.cam_msg)
-            except viewer_utils.IOChangeException:
-                # if we got interrupted, don't send the output to the viewer
-                continue
-            self._send_output_to_viewer(outputs)
-            # if we rendered a static low res, we need to self-trigger a static high-res
-            if self.state == "low_static":
-                self.action(RenderAction("static", action.cam_msg))
+            if self.viewer.dist_step > 0:
+                try:
+                    with viewer_utils.SetTrace(self.check_interrupt):
+                        outputs = self._render_img(action.cam_msg)
+                except viewer_utils.IOChangeException:
+                    # if we got interrupted, don't send the output to the viewer
+                    continue
+                self._send_output_to_viewer(outputs)
+                # if we rendered a static low res, we need to self-trigger a static high-res
+                if self.state == "low_static":
+                    self.action(RenderAction("static", action.cam_msg))
 
     def check_interrupt(self, frame, event, arg):
         """Raises interrupt when flag has been set and not already on lowest resolution.

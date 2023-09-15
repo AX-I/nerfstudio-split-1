@@ -394,6 +394,9 @@ class ViewerState:
         self.step = step
 
         if self.camera_message is None:
+            print(f'{step} cam none going to broadcast step', flush=True)
+            dist.broadcast(dist_viewer_step, src=0)
+            print('broadcast dist_viewer_step', dist_viewer_step, flush=True)
             return
 
         if (
@@ -416,19 +419,27 @@ class ViewerState:
                 render_freq = train_util * vis_time / (train_time - train_util * train_time)
             else:
                 render_freq = 30
+
             if step > self.last_step + render_freq:
 
                 dist_viewer_step += 1
                 self.dist_step += 1
 
-                dist_cam_msg_t[:] = serialize_cam_msg(self.camera_message)
+        print(f'{step} going to broadcast step', flush=True)
+        dist.broadcast(dist_viewer_step, src=0)
+        print('broadcast dist_viewer_step', dist_viewer_step, flush=True)
 
-                print('going to broadcast step', flush=True)
-                dist.broadcast(dist_viewer_step, src=0)
-                print('broadcast dist_viewer_step', flush=True)
+        if (
+            self.trainer is not None
+            and self.trainer.training_state == "training"
+            and self.control_panel.train_util != 1
+        ):
+            if step > self.last_step + render_freq:
+
+                print('going to broadcast dist_cam_msg_t', flush=True)
+                dist_cam_msg_t[:] = serialize_cam_msg(self.camera_message)
                 dist.broadcast(dist_cam_msg_t, src=0)
                 print('broadcast dist_cam_msg_t', flush=True)
-
 
                 self.last_step = step
                 self.render_statemachine.action(RenderAction("step", self.camera_message))
