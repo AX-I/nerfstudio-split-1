@@ -18,8 +18,8 @@ def serialize_cam_msg(m: CameraMessage) -> torch.Tensor:
 def unserialize_cam_msg(t: torch.Tensor) -> CameraMessage:
     d = ("perspective", "fisheye", "equirectangular")
     m = CameraMessage(aspect=t[0], render_aspect=t[1], fov=t[2],
-                      matrix=t[3:19], camera_type=d[t[19]], is_moving=t[20],
-                      timestamp=t[21])
+                      matrix=t[3:19], camera_type=d[int(t[19].item())],
+                      is_moving=t[20], timestamp=t[21])
     return m
 
 
@@ -35,7 +35,7 @@ class DistributedRenderStateMachine:
         self.viewer.dist.broadcast(hw, src=0)
         print('receive image_height width', flush=True)
 
-        image_height, image_width = hw[0], hw[1]
+        image_height, image_width = hw.cpu()
 
         camera: Optional[Cameras] = self.viewer.get_camera(image_height, image_width)
         assert camera is not None, "render called before viewer connected"
@@ -51,8 +51,9 @@ class DistributedRenderStateMachine:
 
 
 class DistributedViewerState:
-    def __init__(self, *args, pipeline=None, dist=None, **kwargs):
+    def __init__(self, *args, pipeline=None, trainer=None, dist=None, **kwargs):
 
+        self.trainer = trainer
         self.pipeline = pipeline
         self.dist = dist
 
