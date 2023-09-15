@@ -30,7 +30,8 @@ class DistributedRenderStateMachine:
     def _render_img(self):
 
         hw = torch.Tensor([0,0])
-        hw = hw.to('cuda')
+        hw = hw.to(self.viewer.trainer.device)
+        print('prepare receive hw')
         self.viewer.dist.broadcast(hw, src=0)
         print('receive image_height width')
 
@@ -67,6 +68,7 @@ class DistributedViewerState:
                      dist_viewer_step: Optional[torch.Tensor] = None,
                      dist_cam_msg_t: Optional[torch.Tensor] = None) -> None:
 
+        print('going to receive step')
         dist.broadcast(dist_viewer_step, src=0)
         print('receive dist_viewer_step')
         dist.broadcast(dist_cam_msg, src=0)

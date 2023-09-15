@@ -243,8 +243,10 @@ class Trainer:
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
         self.pipeline.model.dist = self.dist
-        self.dist_viewer_step = torch.Tensor([0])
-        self.dist_cam_msg = torch.zeros(22)
+        dist_viewer_step = torch.Tensor([0])
+        self.dist_viewer_step = dist_viewer_step.to(self.device)
+        dist_cam_msg = torch.zeros(22)
+        self.dist_cam_msg = dist_cam_msg.to(self.device)
 
         # don't want to call save_dataparser_transform if pipeline's datamanager does not have a dataparser
         if isinstance(self.pipeline.datamanager, VanillaDataManager):

@@ -99,6 +99,7 @@ class ViewerState:
         self.datapath = datapath.parent if datapath.is_file() else datapath
 
         self.dist = dist
+        self.dist_step = 0
 
         if self.config.websocket_port is None:
             websocket_port = viewer_utils.get_free_port(default_port=self.config.websocket_port_default)
@@ -418,12 +419,15 @@ class ViewerState:
             if step > self.last_step + render_freq:
 
                 dist_viewer_step += 1
-                dist_cam_msg_t = serialize_cam_msg(self.camera_message)
+                self.dist_step += 1
 
+                dist_cam_msg_t[:] = serialize_cam_msg(self.camera_message)
+
+                print('going to broadcast step')
                 dist.broadcast(dist_viewer_step, src=0)
                 print('broadcast dist_viewer_step')
-                dist.broadcast(dist_cam_msg, src=0)
-                print('broadcast dist_cam_msg')
+                dist.broadcast(dist_cam_msg_t, src=0)
+                print('broadcast dist_cam_msg_t')
 
 
                 self.last_step = step
