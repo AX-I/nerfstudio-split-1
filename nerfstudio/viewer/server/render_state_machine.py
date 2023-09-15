@@ -124,6 +124,7 @@ class RenderStateMachine(threading.Thread):
         image_height, image_width = self._calculate_image_res(cam_msg.aspect)
 
         hw = torch.Tensor([image_height, image_width])
+        hw = hw.to('cuda')
         self.viewer.dist.broadcast(hw, src=0)
         print('broadcast image_height width')
 

@@ -30,6 +30,7 @@ class DistributedRenderStateMachine:
     def _render_img(self):
 
         hw = torch.Tensor([0,0])
+        hw = hw.to('cuda')
         self.viewer.dist.broadcast(hw, src=0)
         print('receive image_height width')
 
