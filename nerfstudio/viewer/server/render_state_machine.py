@@ -123,13 +123,13 @@ class RenderStateMachine(threading.Thread):
 
         image_height, image_width = self._calculate_image_res(cam_msg.aspect)
 
-        print('step', self.viewer.dist_step)
+        print('step', self.viewer.dist_step, flush=True)
         if self.viewer.dist_step > 0:
             hw = torch.Tensor([image_height, image_width])
             hw = hw.to(self.viewer.trainer.device)
-            print('going to broadcast hw')
+            print('going to broadcast hw', flush=True)
             self.viewer.dist.broadcast(hw, src=0)
-            print('broadcast image_height width')
+            print('broadcast image_height width', flush=True)
 
         camera: Optional[Cameras] = self.viewer.get_camera(image_height, image_width)
         assert camera is not None, "render called before viewer connected"

@@ -31,9 +31,9 @@ class DistributedRenderStateMachine:
 
         hw = torch.Tensor([0,0])
         hw = hw.to(self.viewer.trainer.device)
-        print('prepare receive hw')
+        print('prepare receive hw', flush=True)
         self.viewer.dist.broadcast(hw, src=0)
-        print('receive image_height width')
+        print('receive image_height width', flush=True)
 
         image_height, image_width = hw[0], hw[1]
 
@@ -63,16 +63,19 @@ class DistributedViewerState:
     def get_model(self):
         return self.pipeline.model
 
+    def init_scene(self, dataset=None, train_state=None):
+        pass
+
     def update_scene(self, step: int, num_rays_per_batch: Optional[int] = None,
                      dist = None,
                      dist_viewer_step: Optional[torch.Tensor] = None,
                      dist_cam_msg_t: Optional[torch.Tensor] = None) -> None:
 
-        print('going to receive step')
+        print('going to receive step', flush=True)
         dist.broadcast(dist_viewer_step, src=0)
-        print('receive dist_viewer_step')
+        print('receive dist_viewer_step', flush=True)
         dist.broadcast(dist_cam_msg, src=0)
-        print('receive dist_cam_msg')
+        print('receive dist_cam_msg', flush=True)
 
         if dist_viewer_step.item() != self.last_dist_viewer_step:
             self.last_dist_viewer_step += 1

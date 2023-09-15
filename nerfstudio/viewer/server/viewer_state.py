@@ -423,11 +423,11 @@ class ViewerState:
 
                 dist_cam_msg_t[:] = serialize_cam_msg(self.camera_message)
 
-                print('going to broadcast step')
+                print('going to broadcast step', flush=True)
                 dist.broadcast(dist_viewer_step, src=0)
-                print('broadcast dist_viewer_step')
+                print('broadcast dist_viewer_step', flush=True)
                 dist.broadcast(dist_cam_msg_t, src=0)
-                print('broadcast dist_cam_msg_t')
+                print('broadcast dist_cam_msg_t', flush=True)
 
 
                 self.last_step = step

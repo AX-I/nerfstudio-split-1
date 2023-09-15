@@ -183,6 +183,7 @@ class Trainer:
                 trainer=self,
                 dist=self.dist,
             )
+            print('hi from local rank', self.local_rank)
 
         if self.config.is_viewer_beta_enabled() and self.local_rank == 0:
             self.viewer_state = ViewerBetaState(
@@ -254,6 +255,7 @@ class Trainer:
                 self.base_dir / "dataparser_transforms.json"
             )
 
+        #print(f'local rank {self.local_rank} init viewer state', flush=True)
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.max_num_iterations
@@ -291,6 +293,7 @@ class Trainer:
                         avg_over_steps=True,
                     )
 
+                #print(f'local rank {self.local_rank} update viewer state', flush=True)
                 self._update_viewer_state(step)
 
                 # a batch of train rays
@@ -362,7 +365,7 @@ class Trainer:
             train_state="training",
         )
 
-    @check_viewer_enabled
+##    @check_viewer_enabled
     def _update_viewer_state(self, step: int) -> None:
         """Updates the viewer state by rendering out scene with current pipeline
         Returns the time taken to render scene.
@@ -370,6 +373,9 @@ class Trainer:
         Args:
             step: current train step
         """
+        if not self.config.is_viewer_enabled():
+            return None
+
         assert self.viewer_state is not None
         num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
         try:
@@ -381,6 +387,7 @@ class Trainer:
         except RuntimeError:
             time.sleep(0.03)  # sleep to allow buffer to reset
             CONSOLE.log("Viewer failed. Continuing training.")
+            print('Error in local rank', self.local_rank)
 
     @check_viewer_enabled
     def _train_complete_viewer(self) -> None:
