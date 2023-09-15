@@ -79,6 +79,8 @@ class RenderStateMachine(threading.Thread):
         self.daemon = True
         self.output_keys = {}
 
+        self.hw = torch.Tensor([0,0]).to(self.viewer.trainer.device)
+
     def action(self, action: RenderAction):
         """Takes an action and updates the state machine
 
@@ -125,10 +127,9 @@ class RenderStateMachine(threading.Thread):
 
         print('step', self.viewer.dist_step, flush=True)
         #if self.viewer.dist_step > 0:
-        hw = torch.Tensor([image_height, image_width])
-        hw = hw.to(self.viewer.trainer.device)
+        self.hw[:] = torch.Tensor([image_height, image_width])
         print('going to broadcast hw', flush=True)
-        self.viewer.dist.broadcast(hw, src=0)
+        self.viewer.dist.broadcast(self.hw, src=0)
         print('broadcast image_height width', flush=True)
 
         camera: Optional[Cameras] = self.viewer.get_camera(image_height, image_width)
@@ -176,6 +177,7 @@ class RenderStateMachine(threading.Thread):
                 # if we are in high res and we get a static action, we don't need to do anything
                 continue
             self.state = self.transitions[self.state][action.action]
+            print('rsm viewer dist step', self.viewer.dist_step)
             if self.viewer.dist_step > 0:
                 try:
                     with viewer_utils.SetTrace(self.check_interrupt):
