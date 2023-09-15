@@ -525,7 +525,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             device=self.device,
             num_workers=self.world_size * 4,
         )
-        self.eval_dataloader = RandIndicesEvalDataloader(
+        self.eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
             device=self.device,
             num_workers=self.world_size * 4,

@@ -296,14 +296,14 @@ class NerfactoModel(Model):
             weights *= torch.logical_not(partition)
 
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
+        accumulation = self.renderer_accumulation(weights=weights)
 
         if self.dist:
             # Can directly add since they are weight-premultiplied
             self.dist.all_reduce(rgb, op=self.dist.ReduceOp.SUM)
-
-
-        depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
-        accumulation = self.renderer_accumulation(weights=weights)
+            self.dist.all_reduce(depth, op=self.dist.ReduceOp.SUM)
+            self.dist.all_reduce(accumulation, op=self.dist.ReduceOp.SUM)
 
         outputs = {
             "rgb": rgb,
