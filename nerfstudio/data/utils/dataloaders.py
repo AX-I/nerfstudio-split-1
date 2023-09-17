@@ -251,16 +251,17 @@ class FixedIndicesEvalDataloader(EvalDataloader):
         self.count = 0
 
     def __iter__(self):
-        self.count = 0
+        #self.count = 0
         return self
 
     def __next__(self):
-        if self.count < len(self.image_indices):
-            image_idx = self.image_indices[self.count]
-            ray_bundle, batch = self.get_data_from_image_idx(image_idx)
-            self.count += 1
-            return ray_bundle, batch
-        raise StopIteration
+        #if self.count < len(self.image_indices):
+        image_idx = self.image_indices[self.count]
+        ray_bundle, batch = self.get_data_from_image_idx(image_idx)
+        self.count += 1
+        if self.count == len(self.image_indices):
+            self.count = 0
+        return ray_bundle, batch
 
 
 class RandIndicesEvalDataloader(EvalDataloader):
