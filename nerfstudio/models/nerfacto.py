@@ -275,7 +275,7 @@ class NerfactoModel(Model):
             )
         return callbacks
 
-    def get_outputs(self, ray_bundle: RayBundle):
+    def get_outputs(self, ray_bundle: RayBundle, is_eval: bool = False):
         ray_samples: RaySamples
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field.forward(ray_samples, compute_normals=self.config.predict_normals)
@@ -299,10 +299,9 @@ class NerfactoModel(Model):
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
-        if self.dist:
+        if self.dist and is_eval:
             # Can directly add since they are weight-premultiplied
             self.dist.all_reduce(rgb, op=self.dist.ReduceOp.SUM)
-            self.dist.all_reduce(depth, op=self.dist.ReduceOp.SUM)
             self.dist.all_reduce(accumulation, op=self.dist.ReduceOp.SUM)
 
         outputs = {
