@@ -97,8 +97,8 @@ class CacheDataloader(DataLoader):
         else:
             self.cams_idx = list(idx[posN[:,coord] >= center])
 
-        print('bound', bound0, bound1)
-        print('shape', posN.shape[0], 'idx', self.cams_idx)
+        #print('bound', bound0, bound1)
+        #print('shape', posN.shape[0], 'idx', self.cams_idx)
 
         self.split_coord = coord
         self.split_center = center
