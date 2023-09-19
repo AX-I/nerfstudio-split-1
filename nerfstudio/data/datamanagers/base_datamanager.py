@@ -529,6 +529,7 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             input_dataset=self.eval_dataset,
             device=self.device,
             num_workers=self.world_size * 4,
+            use_iter=False,
         )
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
