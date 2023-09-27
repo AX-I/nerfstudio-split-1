@@ -235,6 +235,9 @@ class NerfactoModel(Model):
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
+        self.dist_rgbs = []
+        self.dist_accums = []
+
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
         param_groups["proposal_networks"] = list(self.proposal_networks.parameters())
@@ -291,18 +294,35 @@ class NerfactoModel(Model):
 
         partition = (p[:,:,self.kwargs['split_coord']] < self.kwargs['split_center'])[:,:,None]
         if self.kwargs['local_rank'] == 0:
-            weights *= partition
+            pass
         else:
-            weights *= torch.logical_not(partition)
+            torch.logical_not(partition, out=partition)
+        weights *= partition
+        inv_partition = torch.logical_not(partition)
 
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
         if self.dist and is_eval:
-            # Can directly add since they are weight-premultiplied
-            self.dist.all_reduce(rgb, op=self.dist.ReduceOp.SUM)
-            self.dist.all_reduce(accumulation, op=self.dist.ReduceOp.SUM)
+            self.dist_rgbs = []
+            self.dist_accums = []
+            self.dist_depths = []
+            for _ in range(2):
+                self.dist_rgbs.append(torch.zeros_like(rgb).to(self.device))
+                self.dist_accums.append(torch.zeros_like(accumulation).to(self.device))
+                self.dist_depths.append(torch.zeros_like(depth).to(self.device))
+
+            self.dist.all_gather(self.dist_rgbs, rgb)
+            self.dist.all_gather(self.dist_accums, accumulation)
+            self.dist.all_gather(self.dist_depths, depth)
+
+            rgb = rgb * partition[:,0] + \
+                  self.dist_rgbs[1 - self.kwargs['local_rank']] * inv_partition[:,0]
+            accumulation = accumulation * partition[:,0] + \
+                  self.dist_accums[1 - self.kwargs['local_rank']] * inv_partition[:,0]
+            depth = depth * partition[:,0] + \
+                  self.dist_depths[1 - self.kwargs['local_rank']] * inv_partition[:,0]
 
         outputs = {
             "rgb": rgb,
