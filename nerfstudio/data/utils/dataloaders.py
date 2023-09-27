@@ -210,6 +210,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
         input_dataset: InputDataset,
         image_indices: Optional[Tuple[int]] = None,
         device: Union[torch.device, str] = "cpu",
+        use_iter: bool = True,
         **kwargs,
     ):
         super().__init__(input_dataset, device, **kwargs)
@@ -218,18 +219,23 @@ class FixedIndicesEvalDataloader(EvalDataloader):
         else:
             self.image_indices = image_indices
         self.count = 0
+        self.use_iter = use_iter
 
     def __iter__(self):
-        self.count = 0
+        if self.use_iter:
+            self.count = 0
         return self
 
     def __next__(self):
+        if self.count == len(self.image_indices) and not self.use_iter:
+            self.count = 0
         if self.count < len(self.image_indices):
             image_idx = self.image_indices[self.count]
             ray_bundle, batch = self.get_data_from_image_idx(image_idx)
             self.count += 1
             return ray_bundle, batch
-        raise StopIteration
+        if self.use_iter:
+            raise StopIteration
 
 
 class RandIndicesEvalDataloader(EvalDataloader):
