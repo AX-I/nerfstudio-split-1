@@ -90,12 +90,15 @@ class CacheDataloader(DataLoader):
         coord = torch.max(bound1 - bound0, 0).indices.item()
         center = (bound1[coord] + bound0[coord]) / 2
 
+        tolerance = 0.5
+        overlap = (bound1[coord] - bound0[coord]) * 0.5 * tolerance
+
         idx = torch.arange(posN.shape[0])
 
         if local_rank == 0:
-            self.cams_idx = list(idx[posN[:,coord] < center])
+            self.cams_idx = list(idx[posN[:,coord] < center + overlap])
         else:
-            self.cams_idx = list(idx[posN[:,coord] >= center])
+            self.cams_idx = list(idx[posN[:,coord] >= center - overlap])
 
         #print('bound', bound0, bound1)
         #print('shape', posN.shape[0], 'idx', self.cams_idx)

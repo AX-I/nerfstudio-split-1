@@ -297,8 +297,10 @@ class NerfactoModel(Model):
             pass
         else:
             torch.logical_not(partition, out=partition)
-        weights *= partition
-        inv_partition = torch.logical_not(partition)
+
+        if self.dist and is_eval:
+            weights *= partition
+            inv_partition = torch.logical_not(partition)
 
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
