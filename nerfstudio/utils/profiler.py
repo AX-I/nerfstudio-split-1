@@ -155,7 +155,7 @@ class PytorchProfiler:
         self.output_path = output_path / "profiler_traces"
         if trace_steps is None:
             # Some arbitrary steps which likely do not overlap with steps usually chosen to run callbacks
-            trace_steps = [12, 17]
+            trace_steps = [124, 1787]
         self.trace_steps = trace_steps
 
     @contextmanager
