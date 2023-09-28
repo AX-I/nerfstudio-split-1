@@ -235,8 +235,9 @@ class NerfactoModel(Model):
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
-        self.dist_rgbs = []
-        self.dist_accums = []
+        self.dist_rgbs = {}
+        self.dist_accums = {}
+        self.dist_depths = {}
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -300,31 +301,35 @@ class NerfactoModel(Model):
 
         if self.dist and is_eval:
             weights *= partition
-            inv_partition = torch.logical_not(partition)
 
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
         if self.dist and is_eval:
-            self.dist_rgbs = []
-            self.dist_accums = []
-            self.dist_depths = []
-            for _ in range(2):
-                self.dist_rgbs.append(torch.zeros_like(rgb).to(self.device))
-                self.dist_accums.append(torch.zeros_like(accumulation).to(self.device))
-                self.dist_depths.append(torch.zeros_like(depth).to(self.device))
+            if rgb.shape[0] not in self.dist_rgbs:
+                self.dist_rgbs[rgb.shape[0]] = []
+                self.dist_accums[rgb.shape[0]] = []
+                self.dist_depths[rgb.shape[0]] = []
+                for _ in range(2):
+                    self.dist_rgbs[rgb.shape[0]].append(torch.zeros_like(rgb).to(self.device))
+                    self.dist_accums[rgb.shape[0]].append(torch.zeros_like(accumulation).to(self.device))
+                    self.dist_depths[rgb.shape[0]].append(torch.zeros_like(depth).to(self.device))
 
-            self.dist.all_gather(self.dist_rgbs, rgb)
-            self.dist.all_gather(self.dist_accums, accumulation)
-            self.dist.all_gather(self.dist_depths, depth)
+            dist_rgb = self.dist_rgbs[rgb.shape[0]]
+            dist_accum = self.dist_accums[rgb.shape[0]]
+            dist_depth = self.dist_depths[rgb.shape[0]]
+
+            self.dist.all_gather(dist_rgb, rgb)
+            self.dist.all_gather(dist_accum, accumulation)
+            self.dist.all_gather(dist_depth, depth)
 
             other_rank = 1 - self.kwargs['local_rank']
-            tot_accum = self.dist_accums[0] + self.dist_accums[1]
-            rgb = (rgb + self.dist_rgbs[other_rank]) / tot_accum
+            tot_accum = dist_accum[0] + dist_accum[1]
+            rgb = (rgb + dist_rgb[other_rank]) / tot_accum
             accumulation = tot_accum
-            depth = depth * (accumulation >= 0.5) + \
-                    self.dist_depths[other_rank] * (accumulation < 0.5)
+            depth = depth * partition[:,0] + \
+                    dist_depth[other_rank] * torch.logical_not(partition[:,0])
 
         outputs = {
             "rgb": rgb,
