@@ -323,7 +323,8 @@ class NerfactoModel(Model):
             tot_accum = self.dist_accums[0] + self.dist_accums[1]
             rgb = (rgb + self.dist_rgbs[other_rank]) / tot_accum
             accumulation = tot_accum
-            depth = (depth + self.dist_depths[other_rank]) / tot_accum
+            depth = depth * (accumulation >= 0.5) + \
+                    self.dist_depths[other_rank] * (accumulation < 0.5)
 
         outputs = {
             "rgb": rgb,
