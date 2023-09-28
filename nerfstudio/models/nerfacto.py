@@ -319,12 +319,10 @@ class NerfactoModel(Model):
             self.dist.all_gather(self.dist_accums, accumulation)
             self.dist.all_gather(self.dist_depths, depth)
 
-            rgb = rgb * partition[:,0] + \
-                  self.dist_rgbs[1 - self.kwargs['local_rank']] * inv_partition[:,0]
-            accumulation = accumulation * partition[:,0] + \
-                  self.dist_accums[1 - self.kwargs['local_rank']] * inv_partition[:,0]
-            depth = depth * partition[:,0] + \
-                  self.dist_depths[1 - self.kwargs['local_rank']] * inv_partition[:,0]
+            other_rank = 1 - self.kwargs['local_rank']
+            rgb = rgb + self.dist_rgbs[other_rank]
+            accumulation = accumulation + self.dist_accums[other_rank]
+            depth = depth + self.dist_depths[other_rank]
 
         outputs = {
             "rgb": rgb,
