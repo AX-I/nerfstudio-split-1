@@ -90,7 +90,7 @@ class CacheDataloader(DataLoader):
         coord = torch.max(bound1 - bound0, 0).indices.item()
         center = (bound1[coord] + bound0[coord]) / 2
 
-        tolerance = 0.5
+        tolerance = 0.1
         overlap = (bound1[coord] - bound0[coord]) * 0.5 * tolerance
 
         idx = torch.arange(posN.shape[0])
