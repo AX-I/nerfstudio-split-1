@@ -265,7 +265,7 @@ class VanillaPipeline(Pipeline):
         self.test_mode = test_mode
 
         ctx = mp.get_context('spawn')
-        self.dm_queue = ctx.Queue()
+        self.dm_queue = ctx.Queue(4)
         self.dm_process = ctx.Process(target=run_datamanager,
             args=(config, device, test_mode, world_size, local_rank,
                   self.dm_queue))
@@ -328,6 +328,8 @@ class VanillaPipeline(Pipeline):
                 )
 
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
+
+        del ray_bundle, batch
 
         return model_outputs, loss_dict, metrics_dict
 

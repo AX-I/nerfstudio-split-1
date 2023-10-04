@@ -600,7 +600,11 @@ def run_datamanager(config, device,
     assert dm.train_dataset is not None, "Missing input dataset"
 
     step = 0
+    steps = []
     while True:
         ray_bundle, batch = dm.next_train(step)
         dm_queue.put((ray_bundle, batch))
+        steps.append((ray_bundle, batch))
+        if len(steps) > 4:
+            del steps[0]
         step += 1
