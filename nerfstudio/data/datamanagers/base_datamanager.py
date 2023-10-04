@@ -585,3 +585,22 @@ class VanillaDataManager(DataManager, Generic[TDataset]):
             assert len(camera_opt_params) == 0
 
         return param_groups
+
+
+def run_datamanager(config, device,
+                    test_mode, world_size, local_rank,
+                    dm_queue):
+
+    dm = config.datamanager.setup(
+        device=device, test_mode=test_mode,
+        world_size=world_size, local_rank=local_rank
+    )
+
+    dm.to(device)
+    assert dm.train_dataset is not None, "Missing input dataset"
+
+    step = 0
+    while True:
+        ray_bundle, batch = dm.next_train(step)
+        dm_queue.put((ray_bundle, batch))
+        step += 1

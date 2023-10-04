@@ -44,10 +44,13 @@ from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
     DataManagerConfig,
     VanillaDataManager,
+    run_datamanager,
 )
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
+
+import torch.multiprocessing as mp
 
 
 def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
@@ -260,6 +263,15 @@ class VanillaPipeline(Pipeline):
         super().__init__()
         self.config = config
         self.test_mode = test_mode
+
+        ctx = mp.get_context('spawn')
+        self.dm_queue = ctx.Queue()
+        self.dm_process = ctx.Process(target=run_datamanager,
+            args=(config, device, test_mode, world_size, local_rank,
+                  self.dm_queue))
+        self.dm_process.start()
+
+
         self.datamanager: DataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
@@ -299,7 +311,8 @@ class VanillaPipeline(Pipeline):
         Args:
             step: current iteration step to update sampler if using DDP (distributed)
         """
-        ray_bundle, batch = self.datamanager.next_train(step)
+        ray_bundle, batch = self.dm_queue.get()
+
         model_outputs = self._model(ray_bundle)  # train distributed data parallel model if world_size > 1
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
 
