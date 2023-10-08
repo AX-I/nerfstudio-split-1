@@ -299,7 +299,7 @@ class NerfactoModel(Model):
             coord = self.kwargs['split_coords'][ci]
             center = self.kwargs['split_centers'][ci]
 
-            if (local_rank >> ci) & 1:
+            if (self.kwargs['local_rank'] >> ci) & 1:
                 partition = torch.logical_and(
                     partition, (p[:,:,coord] >= center)[:,:,None])
             else:
