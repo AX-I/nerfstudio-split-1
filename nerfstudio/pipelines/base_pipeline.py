@@ -286,16 +286,13 @@ class VanillaPipeline(Pipeline):
             device=device,
             grad_scaler=grad_scaler,
             local_rank=local_rank,
-            split_coord=self.datamanager.train_image_dataloader.split_coord,
-            split_center=self.datamanager.train_image_dataloader.split_center,
+            world_size=world_size,
+            split_coords=self.datamanager.train_image_dataloader.split_coords,
+            split_centers=self.datamanager.train_image_dataloader.split_centers,
         )
         self.model.to(device)
 
         self.world_size = world_size
-        if world_size > 1:
-            pass
-            #self._model = typing.cast(Model, DDP(self._model, device_ids=[local_rank], find_unused_parameters=True))
-            #dist.barrier(device_ids=[local_rank])
 
     @property
     def device(self):

@@ -235,8 +235,6 @@ class NerfactoModel(Model):
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
 
-        self.dist_rgbs = {}
-        self.dist_accums = {}
         self.dist_depths = {}
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
@@ -293,11 +291,21 @@ class NerfactoModel(Model):
         f = ray_samples.frustums
         p = f.origins + f.starts * f.directions
 
-        partition = (p[:,:,self.kwargs['split_coord']] < self.kwargs['split_center'])[:,:,None]
-        if self.kwargs['local_rank'] == 0:
-            pass
-        else:
-            torch.logical_not(partition, out=partition)
+
+        nsplits = 2 if self.kwargs['world_size'] > 2 else 1
+        partition = torch.ones_like(p[:,:,0])
+
+        for ci in range(nsplits):
+            coord = self.kwargs['split_coords'][ci]
+            center = self.kwargs['split_centers'][ci]
+
+            if (local_rank >> ci) & 1:
+                partition = torch.logical_and(
+                    partition, (p[:,:,coord] >= center)[:,:,None])
+            else:
+                partition = torch.logical_and(
+                    partition, (p[:,:,coord] < center)[:,:,None])
+
 
         if self.dist and is_eval:
             weights *= partition
@@ -306,28 +314,21 @@ class NerfactoModel(Model):
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
+
         if self.dist and is_eval:
-            if rgb.shape[0] not in self.dist_rgbs:
-                self.dist_rgbs[rgb.shape[0]] = []
-                self.dist_accums[rgb.shape[0]] = []
+            if rgb.shape[0] not in self.dist_depths:
                 self.dist_depths[rgb.shape[0]] = []
-                for _ in range(2):
-                    self.dist_rgbs[rgb.shape[0]].append(torch.zeros_like(rgb).to(self.device))
-                    self.dist_accums[rgb.shape[0]].append(torch.zeros_like(accumulation).to(self.device))
+                for _ in range(self.kwargs['world_size']):
                     self.dist_depths[rgb.shape[0]].append(torch.zeros_like(depth).to(self.device))
 
-            dist_rgb = self.dist_rgbs[rgb.shape[0]]
-            dist_accum = self.dist_accums[rgb.shape[0]]
             dist_depth = self.dist_depths[rgb.shape[0]]
 
-            self.dist.all_gather(dist_rgb, rgb)
-            self.dist.all_gather(dist_accum, accumulation)
+            self.dist.all_reduce(rgb)
+            self.dist.all_reduce(accumulation)
             self.dist.all_gather(dist_depth, depth)
 
-            other_rank = 1 - self.kwargs['local_rank']
-            tot_accum = dist_accum[0] + dist_accum[1]
-            rgb = (rgb + dist_rgb[other_rank]) / tot_accum
-            accumulation = tot_accum
+            rgb /= accumulation
+            other_rank = 1 - min(1, self.kwargs['local_rank'])
             depth = depth * partition[:,0] + \
                     dist_depth[other_rank] * torch.logical_not(partition[:,0])
 

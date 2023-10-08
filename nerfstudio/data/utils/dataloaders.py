@@ -57,6 +57,7 @@ class CacheDataloader(DataLoader):
         collate_fn: Callable[[Any], Any] = nerfstudio_collate,
         exclude_batch_keys_from_device: Optional[List[str]] = None,
         local_rank=None,
+        world_size=None,
         **kwargs,
     ):
         if exclude_batch_keys_from_device is None:
@@ -77,35 +78,40 @@ class CacheDataloader(DataLoader):
         self.first_time = True
 
         self.local_rank = local_rank
-
+        self.world_size = world_size
 
 
         cameras = dataset.cameras # Tensor
         posN = cameras.camera_to_worlds[:,:,3].reshape(-1, 3)
 
-
-        # Simple axis-aligned split
-        bound1 = torch.max(posN, 0).values
-        bound0 = torch.min(posN, 0).values
-        coord = torch.max(bound1 - bound0, 0).indices.item()
-        center = (bound1[coord] + bound0[coord]) / 2
-
-        tolerance = 0.1
-        overlap = (bound1[coord] - bound0[coord]) * 0.5 * tolerance
-
         idx = torch.arange(posN.shape[0])
+        sel = torch.ones_like(posN[:,0])
 
-        if local_rank == 0:
-            self.cams_idx = list(idx[posN[:,coord] < center + overlap])
-        else:
-            self.cams_idx = list(idx[posN[:,coord] >= center - overlap])
+        if self.world_size:
+            # Simple axis-aligned split
+            bound1 = torch.max(posN, 0).values
+            bound0 = torch.min(posN, 0).values
 
-        #print('bound', bound0, bound1)
-        #print('shape', posN.shape[0], 'idx', self.cams_idx)
+            coords = torch.sort(bound1 - bound0, descending=True).indices
 
-        self.split_coord = coord
-        self.split_center = center
+            tolerance = 0.1
+            nsplits = 2 if self.world_size > 2 else 1
 
+
+            self.split_coords = coords[:nsplits]
+            self.split_centers = (bound1 + bound0)[self.split_coords] / 2
+
+            for ci in range(nsplits):
+                coord = self.split_coords[ci]
+                center = self.split_centers[ci]
+                overlap = (bound1[coord] - bound0[coord]) * 0.5 * tolerance
+
+                if (local_rank >> ci) & 1:
+                    sel = torch.logical_and(sel, (posN[:,coord] >= center - overlap))
+                else:
+                    sel = torch.logical_and(sel, (posN[:,coord] < center + overlap))
+
+        self.cams_idx = list(idx[sel.bool()])
         self.num_images_to_sample_from = len(self.cams_idx) if self.cache_all_images else num_images_to_sample_from
 
 
