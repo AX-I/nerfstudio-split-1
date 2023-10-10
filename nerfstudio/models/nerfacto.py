@@ -293,7 +293,7 @@ class NerfactoModel(Model):
 
 
         nsplits = 2 if self.kwargs['world_size'] > 2 else 1
-        partition = torch.ones_like(p[:,:,0])
+        partition = torch.ones_like(p[:,:,0:1])
 
         for ci in range(nsplits):
             coord = self.kwargs['split_coords'][ci]
