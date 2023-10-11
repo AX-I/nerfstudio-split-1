@@ -78,7 +78,7 @@ class CacheDataloader(DataLoader):
         self.first_time = True
 
         self.local_rank = local_rank
-        self.world_size = world_size
+        self.world_size = world_size or 1
 
 
         cameras = dataset.cameras # Tensor
@@ -87,7 +87,7 @@ class CacheDataloader(DataLoader):
         idx = torch.arange(posN.shape[0])
         sel = torch.ones_like(posN[:,0])
 
-        if self.world_size:
+        if self.world_size > 1:
             # Simple axis-aligned split
             bound1 = torch.max(posN, 0).values
             bound0 = torch.min(posN, 0).values
