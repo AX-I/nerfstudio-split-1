@@ -405,7 +405,8 @@ class VanillaPipeline(Pipeline):
                 inner_start = time()
                 height, width = camera_ray_bundle.shape
                 num_rays = height * width
-                outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle,
+                                                                       is_eval=True)
                 metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
 
                 if output_path is not None:
