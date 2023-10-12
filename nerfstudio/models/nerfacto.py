@@ -126,6 +126,8 @@ class NerfactoModelConfig(ModelConfig):
     """Which implementation to use for the model."""
     appearance_embed_dim: int = 32
     """Dimension of the appearance embedding."""
+    eval_only_psnr: bool = False
+    """Don't compute ssim or lpips on eval images"""
 
 
 class NerfactoModel(Model):
@@ -381,12 +383,13 @@ class NerfactoModel(Model):
         predicted_rgb = torch.moveaxis(predicted_rgb, -1, 0)[None, ...]
 
         psnr = self.psnr(gt_rgb, predicted_rgb)
-        ssim = self.ssim(gt_rgb, predicted_rgb)
-        lpips = self.lpips(gt_rgb, predicted_rgb)
+        metrics_dict = {"psnr": float(psnr.item())}
+        if not self.config.eval_only_psnr:
+            ssim = self.ssim(gt_rgb, predicted_rgb)
+            lpips = self.lpips(gt_rgb, predicted_rgb)
 
-        # all of these metrics will be logged as scalars
-        metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim)}  # type: ignore
-        metrics_dict["lpips"] = float(lpips)
+            metrics_dict["ssim"] = float(ssim)  # type: ignore
+            metrics_dict["lpips"] = float(lpips)
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
 
