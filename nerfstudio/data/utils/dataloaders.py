@@ -87,6 +87,9 @@ class CacheDataloader(DataLoader):
         idx = torch.arange(posN.shape[0])
         sel = torch.ones_like(posN[:,0])
 
+        self.split_coords = []
+        self.split_centers = []
+
         if self.world_size > 1:
             # Simple axis-aligned split
             bound1 = torch.max(posN, 0).values
