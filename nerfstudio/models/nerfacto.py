@@ -49,6 +49,7 @@ from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
 
+import time
 
 @dataclass
 class NerfactoModelConfig(ModelConfig):
@@ -279,6 +280,7 @@ class NerfactoModel(Model):
         return callbacks
 
     def get_outputs(self, ray_bundle: RayBundle, is_eval: bool = False):
+        t0 = time.perf_counter()
         ray_samples: RaySamples
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field.forward(ray_samples, compute_normals=self.config.predict_normals)
@@ -317,6 +319,7 @@ class NerfactoModel(Model):
 
 
         if self.dist and is_eval:
+            t1 = time.perf_counter()
             if rgb.shape[0] not in self.dist_depths:
                 self.dist_depths[rgb.shape[0]] = []
                 for _ in range(self.kwargs['world_size']):
@@ -333,11 +336,17 @@ class NerfactoModel(Model):
             depth = depth * partition[:,0] + \
                     dist_depth[other_rank] * torch.logical_not(partition[:,0])
 
+        t2 = time.perf_counter()
+
         outputs = {
             "rgb": rgb,
             "accumulation": accumulation,
             "depth": depth,
         }
+
+        if self.dist and is_eval:
+            print('Eval sync time', t2 - t1)
+            print('Eval total time', t2 - t0)
 
         if self.config.predict_normals:
             normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)

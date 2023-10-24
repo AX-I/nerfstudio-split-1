@@ -401,36 +401,29 @@ class VanillaPipeline(Pipeline):
             transient=True,
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
-            with torchprof.profile(activities=[torchprof.ProfilerActivity.CPU, torchprof.ProfilerActivity.CUDA],
-                                   use_cuda=True) as prof:
-                with torchprof.record_function('eval all'):
-                    for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
-                        # time this the following line
-                        inner_start = time()
-                        height, width = camera_ray_bundle.shape
-                        num_rays = height * width
-                        outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle,
-                                                                               is_eval=True)
-                        metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
+            for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
+                # time this the following line
+                inner_start = time()
+                height, width = camera_ray_bundle.shape
+                num_rays = height * width
+                outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle,
+                                                                       is_eval=True)
+                metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
 
-                        if output_path is not None:
-                            camera_indices = camera_ray_bundle.camera_indices
-                            assert camera_indices is not None
-                            for key, val in images_dict.items():
-                                Image.fromarray((val * 255).byte().cpu().numpy()).save(
-                                    output_path / "{0:06d}-{1}.jpg".format(int(camera_indices[0, 0, 0]), key)
-                                )
-                        assert "num_rays_per_sec" not in metrics_dict
-                        metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
-                        fps_str = "fps"
-                        assert fps_str not in metrics_dict
-                        metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
-                        metrics_dict_list.append(metrics_dict)
-                        progress.advance(task)
-            print('==== CPU Profile ====')
-            print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
-            print('==== CUDA Profile ====')
-            print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20))
+                if output_path is not None:
+                    camera_indices = camera_ray_bundle.camera_indices
+                    assert camera_indices is not None
+                    for key, val in images_dict.items():
+                        Image.fromarray((val * 255).byte().cpu().numpy()).save(
+                            output_path / "{0:06d}-{1}.jpg".format(int(camera_indices[0, 0, 0]), key)
+                        )
+                assert "num_rays_per_sec" not in metrics_dict
+                metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
+                fps_str = "fps"
+                assert fps_str not in metrics_dict
+                metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
+                metrics_dict_list.append(metrics_dict)
+                progress.advance(task)
         # average the metrics list
         metrics_dict = {}
         for key in metrics_dict_list[0].keys():
